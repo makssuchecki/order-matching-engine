@@ -38,7 +38,7 @@ add_executable(ome_main src/main.cpp)
 target_link_libraries(ome_main PRIVATE ome_core)
 
 enable_testing()
-add_executable(ome_tests tests/test_placeholder.cpp)
+add_executable(ome_tests tests/test_order.cpp)
 target_link_libraries(ome_tests PRIVATE ome_core gtest_main)
 include(GoogleTest)
 gtest_discover_tests(ome_tests)
