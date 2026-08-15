@@ -30,18 +30,19 @@ CPMAddPackage(
     GIT_TAG v1.9.1
     OPTIONS "BENCHMARK_ENABLE_TESTING OFF" "BENCHMARK_ENABLE_INSTALL OFF"
 )
+
 add_library(ome_core INTERFACE)
 target_include_directories(ome_core INTERFACE ${CMAKE_SOURCE_DIR}/include)
 target_compile_features(ome_core INTERFACE cxx_std_20)
 
-add_executable(ome_main src/main.cpp)
+# --- main executable
+add_executable(ome_main src/main.cpp src/order_book.cpp)
 target_link_libraries(ome_main PRIVATE ome_core)
 
+# --- testy
 enable_testing()
-add_executable(ome_tests tests/test_order.cpp)
+add_executable(ome_tests tests/test_order.cpp tests/test_order_book.cpp src/order_book.cpp)
 target_link_libraries(ome_tests PRIVATE ome_core gtest_main)
 include(GoogleTest)
 gtest_discover_tests(ome_tests)
 
-add_executable(ome_benchmarks benchmarks/bench_placeholder.cpp)
-target_link_libraries(ome_benchmarks PRIVATE ome_core benchmark::benchmark)
