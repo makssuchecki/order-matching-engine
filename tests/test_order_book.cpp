@@ -61,6 +61,24 @@ TEST(OrderBook, CrossingOrderLeavesRest){
     EXPECT_EQ(trades[0].price, 100);
     EXPECT_EQ(trades[0].quantity, 4);
     EXPECT_FALSE(book.best_bid().has_value());
+    EXPECT_TRUE(book.best_ask().has_value());
+}
 
+TEST(OrderBook, TradesFirstInOrderLeavingQueue) {
+    OrderBook book;
+    Order sell1{.id = 1, .price = 100, .quantity = 5, .side = Side::Sell, .timestamp = 1};
+    Order sell2{.id = 2, .price = 100, .quantity = 5, .side = Side::Sell, .timestamp = 2};
+    Order buy{.id = 3, .price = 100, .quantity = 5, .side = Side::Buy, .timestamp = 3};
+
+    book.add_limit_order(sell1);
+    book.add_limit_order(sell2);
+    auto trades = book.add_limit_order(buy);
+
+    ASSERT_EQ(trades.size(), 1);
+    EXPECT_EQ(trades[0].buy_order_id, 3);
+    EXPECT_EQ(trades[0].sell_order_id, 1);
+    EXPECT_EQ(trades[0].price, 100);
+    EXPECT_EQ(trades[0].quantity, 5);
+    EXPECT_FALSE(book.best_bid().has_value());
     EXPECT_TRUE(book.best_ask().has_value());
 }

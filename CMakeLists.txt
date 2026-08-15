@@ -46,3 +46,6 @@ target_link_libraries(ome_tests PRIVATE ome_core gtest_main)
 include(GoogleTest)
 gtest_discover_tests(ome_tests)
 
+# --- benchmarki
+add_executable(ome_benchmarks benchmarks/bench_order_book.cpp src/order_book.cpp)
+target_link_libraries(ome_benchmarks PRIVATE ome_core benchmark::benchmark)
