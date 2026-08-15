@@ -29,3 +29,38 @@ TEST(OrderBook, NonCrossingOrdersRestInBookWithoutMatching) {
     EXPECT_EQ(book.best_bid().value(), 100);
     EXPECT_EQ(book.best_ask().value(), 110);
 }
+
+TEST(OrderBook, FullyCrossingOrdersProduceOneTrade) {
+    OrderBook book;
+    Order sell{.id = 1, .price = 100, .quantity = 10, .side = Side::Sell, .timestamp = 1};
+    Order buy{.id = 2, .price = 100, .quantity = 10, .side = Side::Buy, .timestamp = 2};
+
+    book.add_limit_order(sell);
+    auto trades = book.add_limit_order(buy);
+
+    ASSERT_EQ(trades.size(), 1);
+    EXPECT_EQ(trades[0].buy_order_id, 2);
+    EXPECT_EQ(trades[0].sell_order_id, 1);
+    EXPECT_EQ(trades[0].price, 100);
+    EXPECT_EQ(trades[0].quantity, 10);
+    EXPECT_FALSE(book.best_bid().has_value());
+    EXPECT_FALSE(book.best_ask().has_value());
+}
+
+TEST(OrderBook, CrossingOrderLeavesRest){
+    OrderBook book;
+    Order sell{.id = 1, .price = 100, .quantity = 10, .side = Side::Sell, .timestamp = 1};
+    Order buy{.id = 2, .price = 100, .quantity = 4, .side = Side::Buy, .timestamp = 2};
+
+    book.add_limit_order(sell);
+    auto trades = book.add_limit_order(buy);
+
+    ASSERT_EQ(trades.size(), 1);
+    EXPECT_EQ(trades[0].buy_order_id, 2);
+    EXPECT_EQ(trades[0].sell_order_id, 1);
+    EXPECT_EQ(trades[0].price, 100);
+    EXPECT_EQ(trades[0].quantity, 4);
+    EXPECT_FALSE(book.best_bid().has_value());
+
+    EXPECT_TRUE(book.best_ask().has_value());
+}
