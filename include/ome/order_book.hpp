@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "ome/order.hpp"
+#include "ome/pool_allocator.hpp"
 
 namespace ome {
 struct Trade {
@@ -25,9 +26,9 @@ public:
     std::optional<std::int64_t> best_ask() const;
 
 private:
-    std::map<std::int64_t, std::deque<Order>, std::greater<>> bids_;
+    std::map<std::int64_t, std::deque<Order, PoolAllocator<Order>>, std::greater<>> bids_;
 
-    std::map<std::int64_t, std::deque<Order>> asks_;
+    std::map<std::int64_t, std::deque<Order, PoolAllocator<Order>>> asks_;
 
     std::vector<Trade> match_buy(Order& incoming);
     std::vector<Trade> match_sell(Order& incoming);

@@ -18,3 +18,11 @@
 | Insert 1000 non-crossing orders | 25 676 ns | ~25.7 ns | 27 650 |
 | Insert 500 crossing buy orders against 500 resting sells | 50 923 ns | ~101.8 ns/pair | 14 418 |
 | Allocations per 1000 orders (non-crossing insert) | 200 (~100 std::map nodes, ~100 std::deque blocks) | — | — |
+
+### Finding: PoolAllocator ineffective with std::deque
+Initial `PoolAllocator` implementation only served requests where
+`n == 1`, falling back to `::operator new` otherwise. In practice,
+libstdc++'s `std::deque` allocates memory in fixed-size chunks
+holding multiple elements per allocation (n > 1), so the pool's
+fast path was never exercised — allocation count remained at 200,
+identical to the `std::deque<Order>` baseline.

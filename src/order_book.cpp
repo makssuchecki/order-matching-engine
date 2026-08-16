@@ -45,7 +45,7 @@ std::vector<Trade> OrderBook::match_buy(Order& incoming) {
             break;
         }
 
-        std::deque<Order>& level_orders = best_level->second;
+        auto& level_orders = best_level->second;
         Order& resting = level_orders.front();
 
         std::uint32_t traded_quantity = std::min(incoming.quantity, resting.quantity);
@@ -81,7 +81,7 @@ std::vector<Trade> OrderBook::match_sell(Order& incoming) {
             break;
         }
 
-        std::deque<Order>& level_orders = best_level->second;
+        auto& level_orders = best_level->second;
         Order& resting = level_orders.front();
 
         std::uint32_t traded_quantity = std::min(incoming.quantity, resting.quantity);
