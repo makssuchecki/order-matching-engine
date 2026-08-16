@@ -1,7 +1,9 @@
 #include <benchmark/benchmark.h>
+#include <iostream>
 
 #include "ome/order_book.hpp"
 #include "ome/order.hpp"
+#include "alloc_counter.hpp"
 
 static void BM_AddNonCrossingOrders(benchmark::State& state) {
     std::vector<ome::Order> orders;
@@ -16,6 +18,16 @@ static void BM_AddNonCrossingOrders(benchmark::State& state) {
             .timestamp = static_cast<std::uint64_t>(i)
         });
     }
+    
+    std::size_t before = g_alloc_count.load();
+    {
+        ome::OrderBook book;
+        for (const auto& order : orders) {
+            book.add_limit_order(order);
+        }
+    }
+    std::size_t after = g_alloc_count.load();
+    std::cerr << "Allocations for 1000 orders: " << (after - before) << "\n";
 
     for (auto _ : state) {
         ome::OrderBook book;

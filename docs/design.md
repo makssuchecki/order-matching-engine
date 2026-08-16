@@ -1,17 +1,20 @@
-# Order Matching Engine Benchmarks
+## Stage 1: Naive implementation (baseline)
 
-./build/ome_benchmarks --benchmark_min_time=1s
+### Architecture
+- `std::map<price, std::deque<Order>, std::greater<>>` for bids
+- `std::map<price, std::deque<Order>>` for asks
+- Price-time priority achieved via natural `std::deque` ordering
+  (push_back/front) — no explicit timestamp-based sorting
 
-2026-08-15T21:03:19+02:00
-Running ./build/ome_benchmarks
-Run on (8 X 3000.01 MHz CPU s)
-CPU Caches:
-  L1 Data 32 KiB (x8)
-  L1 Instruction 32 KiB (x8)
-  L2 Unified 256 KiB (x8)
-  L3 Unified 12288 KiB (x1)
-Load Average: 0.85, 0.36, 0.13
-------------------------------------------------------------------
-Benchmark                        Time             CPU   Iterations
-------------------------------------------------------------------
-BM_AddNonCrossingOrders      25637 ns        25637 ns        50208
+### Design decisions
+- Price stored as `std::int64_t` in the smallest unit (not `double`) —
+  avoids floating-point rounding errors
+- `Order` is a POD type, `sizeof(Order) == 32` bytes (verified via
+  `static_assert(std::is_trivially_copyable_v<Order>)`)
+
+### Benchmark results
+| Scenario | Time / batch | Time / order | Iterations |
+|---|---|---|---|
+| Insert 1000 non-crossing orders | 25 676 ns | ~25.7 ns | 27 650 |
+| Insert 500 crossing buy orders against 500 resting sells | 50 923 ns | ~101.8 ns/pair | 14 418 |
+| Allocations per 1000 orders (non-crossing insert) | 200 (~100 std::map nodes, ~100 std::deque blocks) | — | — |
