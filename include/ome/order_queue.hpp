@@ -8,6 +8,8 @@ namespace ome {
 template <std::size_t Capacity>
 class OrderQueue {
 public:
+    explicit OrderQueue(MemoryPool<Order, Capacity>& pool) : pool_(pool) {} 
+    
     bool empty() const { return head_ == nullptr; }
 
     void push_back(const Order& order) {
@@ -38,7 +40,7 @@ public:
     }
 
 private:
-    MemoryPool<Order, Capacity> pool_;
+    MemoryPool<Order, Capacity>& pool_;
     Order* head_ = nullptr;
     Order* tail_ = nullptr;
 };

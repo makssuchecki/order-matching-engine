@@ -23,12 +23,12 @@ std::vector<Trade> OrderBook::add_limit_order(Order order) {
     if (order.side == Side::Buy){
         trades = match_buy(order);
         if (order.quantity > 0) {
-            bids_[order.price].push_back(order);
+            bids_.try_emplace(order.price, bid_pool_).first->second.push_back(order);
         }
     } else{
         trades = match_sell(order);
         if (order.quantity > 0) {
-            asks_[order.price].push_back(order);
+            asks_.try_emplace(order.price, ask_pool_).first->second.push_back(order);
         }
     }
 

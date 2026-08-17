@@ -6,7 +6,8 @@
 using namespace ome;
 
 TEST(OrderQueue, PushFrontMaintainsFifoOrder ){
-    OrderQueue<1000> q;
+    MemoryPool<Order, 1000> pool;
+    OrderQueue<1000> q(pool);
     Order first{.id = 1, .price=100, .quantity = 10, .side = Side::Buy, .timestamp = 1, .next = nullptr};
     Order second{.id = 2, .price=200, .quantity = 10, .side = Side::Buy, .timestamp = 2, .next = nullptr};
 
@@ -20,7 +21,8 @@ TEST(OrderQueue, PushFrontMaintainsFifoOrder ){
 }
 
 TEST(OrderQueue, EmptyAfterPoppingAllElements){
-    OrderQueue<1000> q;
+    MemoryPool<Order, 1000> pool;
+    OrderQueue<1000> q(pool);
 
     Order only{.id = 1, .price = 100, .quantity = 10, .side = Side::Buy, .timestamp = 1, .next = nullptr};
     q.push_back(only);

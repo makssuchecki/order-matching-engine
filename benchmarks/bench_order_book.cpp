@@ -15,7 +15,8 @@ static void BM_AddNonCrossingOrders(benchmark::State& state) {
             .price = (i% 2 == 0) ? (9000 + (i % 50)) : (11000 + (i % 50)),
             .quantity = 10,
             .side = (i % 2 == 0) ? ome::Side::Buy : ome::Side::Sell,
-            .timestamp = static_cast<std::uint64_t>(i)
+            .timestamp = static_cast<std::uint64_t>(i),
+            .next = nullptr
         });
     }
     
@@ -30,7 +31,9 @@ static void BM_AddNonCrossingOrders(benchmark::State& state) {
     std::cerr << "Allocations for 1000 orders: " << (after - before) << "\n";
 
     for (auto _ : state) {
+        state.PauseTiming();
         ome::OrderBook book;
+        state.ResumeTiming();
         for (const auto& order : orders){
             book.add_limit_order(order);
         }
@@ -46,7 +49,8 @@ static void BM_AddCrossingOrders(benchmark::State& state){
             .price = 10000 + i,
             .quantity = 10,
             .side = ome::Side::Sell,
-            .timestamp = static_cast<std::uint64_t>(i)
+            .timestamp = static_cast<std::uint64_t>(i),
+            .next = nullptr
         });
     }
     std::vector<ome::Order> crossing_buys;
@@ -57,7 +61,8 @@ static void BM_AddCrossingOrders(benchmark::State& state){
             .price = 10000 + i,
             .quantity = 10,
             .side = ome::Side::Buy,
-            .timestamp = static_cast<std::uint64_t>(i)
+            .timestamp = static_cast<std::uint64_t>(i),
+            .next = nullptr
         });
     }
 
