@@ -14,5 +14,6 @@ struct Order
     std::uint32_t quantity;
     Side side;
     std::uint64_t timestamp;
+    Order* next;
 };
 }

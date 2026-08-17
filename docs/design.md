@@ -19,10 +19,26 @@
 | Insert 500 crossing buy orders against 500 resting sells | 50 923 ns | ~101.8 ns/pair | 14 418 |
 | Allocations per 1000 orders (non-crossing insert) | 200 (~100 std::map nodes, ~100 std::deque blocks) | — | — |
 
+## Stage 2: Memory pool / custom allocator
+
+### What was built
+- `MemoryPool<T, BlockCount>` — fixed-capacity free-list allocator,
+  O(1) allocate/deallocate, no syscalls after construction. Verified
+  via unit tests (distinct pointers on repeated allocate, slot reuse
+  after deallocate).
+- `PoolAllocator<T>` — STL-compatible allocator wrapping `MemoryPool`,
+  verified to work as a drop-in allocator for `std::deque` (push_back,
+  pop_front, iteration).
+
+### Benchmark results (std::deque<Order, PoolAllocator<Order>>)
+| Scenario | Time / batch | Allocations / 1000 orders |
+|---|---|---|
+| Insert 1000 non-crossing orders | 24 548 ns | 200 (unchanged from baseline) |
+
 ### Finding: PoolAllocator ineffective with std::deque
-Initial `PoolAllocator` implementation only served requests where
-`n == 1`, falling back to `::operator new` otherwise. In practice,
-libstdc++'s `std::deque` allocates memory in fixed-size chunks
-holding multiple elements per allocation (n > 1), so the pool's
-fast path was never exercised — allocation count remained at 200,
-identical to the `std::deque<Order>` baseline.
+`PoolAllocator::allocate(n)` only serves the fast path when `n == 1`,
+falling back to `::operator new` otherwise. libstdc++'s `std::deque`
+allocates memory in fixed-size chunks holding multiple elements per
+call (n > 1 in practice), so the pool's fast path was never exercised
+— allocation count and timing remained statistically identical to the
+`std::deque<Order>` baseline.
