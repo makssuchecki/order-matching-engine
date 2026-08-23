@@ -17,6 +17,8 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 
 include(cmake/CPM.cmake)
 
+find_package(Threads REQUIRED)
+
 CPMAddPackage(
     NAME googletest
     GITHUB_REPOSITORY google/googletest
