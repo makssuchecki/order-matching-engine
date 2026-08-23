@@ -6,8 +6,7 @@ using namespace ome;
 
 TEST(OrderBook, AddingSingleBuyToEmptyBookHasNoTrades) { 
     OrderBook book;
-    Order order{.id = 1, .price = 100, .quantity = 10, .side = Side::Buy, .timestamp = 1};
-
+    Order order{.id = 1, .price = 100, .quantity = 10, .side = Side::Buy, .timestamp = 1, .next = nullptr};
     auto trades = book.add_limit_order(order);
 
     EXPECT_TRUE(trades.empty());
@@ -18,8 +17,8 @@ TEST(OrderBook, AddingSingleBuyToEmptyBookHasNoTrades) {
 
 TEST(OrderBook, NonCrossingOrdersRestInBookWithoutMatching) { 
     OrderBook book;
-    Order buy{.id = 1, .price = 100, .quantity = 10, .side = Side::Buy, .timestamp = 1};
-    Order sell{.id = 2, .price = 110, .quantity = 5, .side = Side::Sell, .timestamp = 2};
+    Order buy{.id = 1, .price = 100, .quantity = 10, .side = Side::Buy, .timestamp = 1, .next = nullptr};
+    Order sell{.id = 2, .price = 110, .quantity = 5, .side = Side::Sell, .timestamp = 2, .next = nullptr};
 
     auto trades_buy = book.add_limit_order(buy);
     auto trades_sell = book.add_limit_order(sell);
@@ -32,9 +31,8 @@ TEST(OrderBook, NonCrossingOrdersRestInBookWithoutMatching) {
 
 TEST(OrderBook, FullyCrossingOrdersProduceOneTrade) {
     OrderBook book;
-    Order sell{.id = 1, .price = 100, .quantity = 10, .side = Side::Sell, .timestamp = 1};
-    Order buy{.id = 2, .price = 100, .quantity = 10, .side = Side::Buy, .timestamp = 2};
-
+    Order sell{.id = 1, .price = 100, .quantity = 10, .side = Side::Sell, .timestamp = 1, .next = nullptr};
+    Order buy{.id = 2, .price = 100, .quantity = 10, .side = Side::Buy, .timestamp = 2, .next = nullptr};
     book.add_limit_order(sell);
     auto trades = book.add_limit_order(buy);
 
@@ -49,9 +47,8 @@ TEST(OrderBook, FullyCrossingOrdersProduceOneTrade) {
 
 TEST(OrderBook, CrossingOrderLeavesRest){
     OrderBook book;
-    Order sell{.id = 1, .price = 100, .quantity = 10, .side = Side::Sell, .timestamp = 1};
-    Order buy{.id = 2, .price = 100, .quantity = 4, .side = Side::Buy, .timestamp = 2};
-
+    Order sell{.id = 1, .price = 100, .quantity = 10, .side = Side::Sell, .timestamp = 1, .next = nullptr};
+    Order buy{.id = 2, .price = 100, .quantity = 4, .side = Side::Buy, .timestamp = 2, .next = nullptr};
     book.add_limit_order(sell);
     auto trades = book.add_limit_order(buy);
 
@@ -66,10 +63,10 @@ TEST(OrderBook, CrossingOrderLeavesRest){
 
 TEST(OrderBook, TradesFirstInOrderLeavingQueue) {
     OrderBook book;
-    Order sell1{.id = 1, .price = 100, .quantity = 5, .side = Side::Sell, .timestamp = 1};
-    Order sell2{.id = 2, .price = 100, .quantity = 5, .side = Side::Sell, .timestamp = 2};
-    Order buy{.id = 3, .price = 100, .quantity = 5, .side = Side::Buy, .timestamp = 3};
-
+    Order sell1{.id = 1, .price = 100, .quantity = 5, .side = Side::Sell, .timestamp = 1, .next = nullptr};
+    Order sell2{.id = 2, .price = 100, .quantity = 5, .side = Side::Sell, .timestamp = 2, .next = nullptr};
+    Order buy{.id = 3, .price = 100, .quantity = 5, .side = Side::Buy, .timestamp = 3, .next = nullptr};
+    
     book.add_limit_order(sell1);
     book.add_limit_order(sell2);
     auto trades = book.add_limit_order(buy);
