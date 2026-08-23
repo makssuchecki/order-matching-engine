@@ -91,3 +91,51 @@ constructed once per OrderBook, resolved this.
   total) is now paid once per OrderBook lifetime, not per operation —
   appropriate for a long-lived book, but must be excluded from
   per-operation benchmarks (measured separately via PauseTiming).
+
+## Stage 3: Lock-free SPSC queue
+
+### Architecture
+- Ring buffer, fixed capacity (power of 2, enables `& mask` instead of `%`)
+- Single producer thread calls `push()`, single consumer thread calls `pop()`
+- Synchronization via `std::atomic<std::size_t>` head/tail indices only —
+  no mutex, no blocking
+
+### Memory ordering
+- Each side reads its own index with `memory_order_relaxed` (sole writer,
+  no synchronization needed for atomicity alone)
+- Each side reads the other side's index with `memory_order_acquire`
+- Each side publishes its own updated index with `memory_order_release`
+- This release/acquire pairing establishes a synchronizes-with relationship:
+  if the consumer observes the producer's updated `tail_`, it is guaranteed
+  to also observe the corresponding data write to `buffer_`, preventing
+  reordering that could expose stale/partial data
+
+### Verification
+- Single-threaded tests: FIFO order, full/empty edge cases, wraparound
+- Multi-threaded test: real producer/consumer threads, 100,000 elements,
+  verifies zero loss/duplication and correct ordering
+- ThreadSanitizer: multi-threaded test run under `-fsanitize=thread`
+  (separate CMake build type `TSAN`), confirming zero data races
+- WSL2 note: TSan initially failed with an "unexpected memory mapping"
+  error caused by WSL2's custom kernel memory layout; resolved by
+  disabling ASLR at launch (`setarch $(uname -m) -R`)
+  
+### ThreadSanitizer validation experiment
+
+To confirm ThreadSanitizer correctly detects synchronization bugs in
+this environment (rather than trusting a clean run at face value), the
+queue was deliberately misconfigured and re-tested:
+
+1. **Broken version**: all `memory_order_acquire`/`memory_order_release`
+   calls in `push()`/`pop()` replaced with `memory_order_relaxed`.
+   Result: TSan reported a genuine data race on `buffer_` between the
+   producer and consumer threads (test still passed functionally on
+   x86's strong memory model — the bug was silent).
+2. **Correct version**: proper `acquire`/`release` pairing restored.
+   Result: TSan reports zero warnings across the full multi-threaded
+   test (100,000 elements, 5 test runs).
+
+This demonstrates both that the release/acquire synchronization is
+necessary (not defensive over-engineering) and that it is correctly
+implemented — a claim that would be unverifiable from a passing
+single-threaded or even multi-threaded test alone on x86.

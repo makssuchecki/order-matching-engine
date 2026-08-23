@@ -12,6 +12,8 @@ endif()
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer")
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-fsanitize=address,undefined")
+set(CMAKE_CXX_FLAGS_TSAN "-g -O1 -fsanitize=thread -fno-omit-frame-pointer")
+set(CMAKE_EXE_LINKER_FLAGS_TSAN "-fsanitize=thread")
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 
@@ -44,9 +46,13 @@ target_link_libraries(ome_main PRIVATE ome_core)
 # --- testy
 enable_testing()
 add_executable(ome_tests tests/test_order.cpp tests/test_order_book.cpp tests/test_memory_pool.cpp tests/test_pool_allocator.cpp tests/test_order_queue.cpp tests/test_spsc_queue.cpp src/order_book.cpp)
-target_link_libraries(ome_tests PRIVATE ome_core gtest_main)
-include(GoogleTest)
-gtest_discover_tests(ome_tests)
+target_link_libraries(ome_tests PRIVATE ome_core gtest_main Threads::Threads)
+if(CMAKE_BUILD_TYPE STREQUAL "TSAN")
+    add_test(NAME ome_tests COMMAND ome_tests)
+else()
+    include(GoogleTest)
+    gtest_discover_tests(ome_tests)
+endif()
 
 # --- benchmarki
 add_executable(ome_benchmarks benchmarks/bench_order_book.cpp src/order_book.cpp)
