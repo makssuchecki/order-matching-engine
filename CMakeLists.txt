@@ -45,7 +45,7 @@ target_link_libraries(ome_main PRIVATE ome_core)
 
 # --- testy
 enable_testing()
-add_executable(ome_tests tests/test_order.cpp tests/test_order_book.cpp tests/test_memory_pool.cpp tests/test_pool_allocator.cpp tests/test_order_queue.cpp tests/test_spsc_queue.cpp src/order_book.cpp)
+add_executable(ome_tests tests/test_order.cpp tests/test_order_book.cpp tests/test_memory_pool.cpp tests/test_pool_allocator.cpp tests/test_order_queue.cpp tests/test_spsc_queue.cpp tests/test_flat_order_book.cpp src/order_book.cpp)
 target_link_libraries(ome_tests PRIVATE ome_core gtest_main Threads::Threads)
 if(CMAKE_BUILD_TYPE STREQUAL "TSAN")
     add_test(NAME ome_tests COMMAND ome_tests)
