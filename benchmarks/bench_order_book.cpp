@@ -4,6 +4,7 @@
 #include "ome/order_book.hpp"
 #include "ome/order.hpp"
 #include "alloc_counter.hpp"
+#include "ome/flat_order_book.hpp"
 
 static void BM_AddNonCrossingOrders(benchmark::State& state) {
     std::vector<ome::Order> orders;
@@ -79,7 +80,73 @@ static void BM_AddCrossingOrders(benchmark::State& state){
     }
 }
 
+static void BM_FlatAddNonCrossingOrders(benchmark::State& state){
+    std::vector<ome::Order> orders;
+    orders.reserve(1000);
+
+    for (int i = 0; i < 1000; i++){
+        orders.push_back(ome::Order{
+            .id = static_cast<std::uint64_t>(i),
+            .price = (i % 2 == 0) ? (9000 + (i % 50)) : (11000) + (i % 50), 
+            .quantity = 10,
+            .side = (i % 2 == 0) ? ome::Side::Buy : ome::Side::Sell,
+            .timestamp = static_cast<std::uint64_t>(i),
+            .next = nullptr
+        });
+    }
+    for (auto _ : state){
+        state.PauseTiming();
+        ome::FlatOrderBook<2050, 10000> book(9000, 11049);
+        state.ResumeTiming();
+
+        for (const auto& order: orders){
+            book.add_limit_order(order);
+        }
+    }
+}
+
+static void BM_FlatAddCrossingOrders(benchmark::State& state){
+    std::vector<ome::Order> resting_sells;
+    resting_sells.reserve(500);
+    for (int i=0; i<500; i++){
+        resting_sells.push_back(ome::Order{
+            .id = static_cast<std::uint64_t>(i),
+            .price = 10000 + i,
+            .quantity = 10,
+            .side = ome::Side::Sell,
+            .timestamp = static_cast<std::uint64_t>(i),
+            .next = nullptr
+        });
+    }
+    std::vector<ome::Order> crossing_buys;
+    crossing_buys.reserve(500);
+    for (int i=0; i<500; i++){
+        crossing_buys.push_back(ome::Order{
+            .id = static_cast<std::uint64_t>(i),
+            .price = 10000 + i,
+            .quantity = 10,
+            .side = ome::Side::Buy,
+            .timestamp = static_cast<std::uint64_t>(i),
+            .next = nullptr
+        });
+    }
+
+    for (auto _ : state){
+        state.PauseTiming();
+        ome::FlatOrderBook<2050, 10000> book(9000, 11049);
+        for (const auto& sell : resting_sells) {
+            book.add_limit_order(sell);
+        }
+        state.ResumeTiming();
+        for (const auto& buy : crossing_buys){
+            book.add_limit_order(buy);
+        }
+    }
+}
+
 BENCHMARK(BM_AddNonCrossingOrders);
 BENCHMARK(BM_AddCrossingOrders);
 
+BENCHMARK(BM_FlatAddNonCrossingOrders);
+BENCHMARK(BM_FlatAddCrossingOrders);
 BENCHMARK_MAIN();

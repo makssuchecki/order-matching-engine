@@ -139,3 +139,50 @@ This demonstrates both that the release/acquire synchronization is
 necessary (not defensive over-engineering) and that it is correctly
 implemented — a claim that would be unverifiable from a passing
 single-threaded or even multi-threaded test alone on x86.
+
+## Stage 4: Flat order book (array-indexed price levels)
+
+### Initial implementation: linear scan for best price
+First version of `best_bid()`/`best_ask()` scans linearly from the
+array boundary to find the first non-empty price level.
+
+### Benchmark results (naive linear scan)
+| Scenario | std::map baseline | FlatOrderBook (linear scan) | Change |
+|---|---|---|---|
+| 1000 non-crossing orders | 19 075 ns | 1 063 536 ns | **56x slower** |
+| 500 crossing orders | 22 964 ns | 320 009 ns | **14x slower** |
+
+### Root cause
+With PriceLevels=2050 but only ~100 occupied levels in the test data,
+every `add_limit_order` call triggers at least one linear scan of up
+to 2050 array slots to locate the best price — O(PriceLevels) per
+operation, versus O(log n) for std::map regardless of price sparsity.
+The flat array's O(1) direct-index advantage is negated when best-price
+lookup itself is the dominant cost.
+
+### Conclusion
+A flat array only outperforms std::map when best-price lookup is also
+O(1) or better — not when it degrades to a linear scan over a sparse
+range. This motivates tracking the occupied price boundary explicitly
+rather than scanning for it.
+
+### Iteration 2: tracked best-price boundary
+
+Added `best_bid_index_`/`best_ask_index_` fields, updated incrementally:
+- Extended (O(1)) whenever a new order occupies a better price level
+- Retracted only when the level that WAS the boundary becomes empty,
+  via a bounded scan starting from that index (not from the array edge)
+
+### Benchmark results (tracked boundary)
+| Scenario | std::map baseline | Flat (linear scan) | Flat (tracked boundary) |
+|---|---|---|---|
+| 1000 non-crossing orders | 18 956 ns | 1 063 536 ns | **10 874 ns** |
+| 500 crossing orders | 22 844 ns | 320 009 ns | **12 371 ns** |
+
+### Conclusion
+Tracking the boundary explicitly turns best-price lookup from O(PriceLevels)
+into amortized O(1), unlocking the flat array's intended advantage:
+FlatOrderBook now outperforms std::map by ~1.7-1.85x on both scenarios,
+with the added benefit of contiguous memory layout for occupied price
+levels (better cache locality during matching, not separately measured
+here but expected to compound the advantage under heavier load).

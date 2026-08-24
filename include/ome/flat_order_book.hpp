@@ -4,20 +4,13 @@
 #include <cstddef>
 #include <vector>
 #include <optional>
-#include <array>
 
 #include "ome/order.hpp"
 #include "ome/order_queue.hpp"
 #include "ome/memory_pool.hpp"
+#include "ome/trade.hpp"
 
 namespace ome {
-
-struct Trade {
-    std::uint64_t buy_order_id;
-    std::uint64_t sell_order_id;
-    std::int64_t price;
-    std::uint32_t quantity;
-};
 
 template <std::size_t PriceLevels, std::size_t PoolCapacity>
 class FlatOrderBook {
@@ -32,43 +25,55 @@ public:
         }
     }
 
+    std::optional<std::size_t> price_to_index(std::int64_t price) const {
+        if (price < min_price_ || price > max_price_) {
+            return std::nullopt;
+        }
+        return static_cast<std::size_t>(price - min_price_);
+    }
+
     std::optional<std::int64_t> best_bid() const {
-        for (std::size_t i = bid_levels_.size(); i-- > 0;){
-            if (!bid_levels_[i].empty()){
-                return static_cast<std::int64_t>(i) + min_price_;
-            }
+        if (!best_bid_index_.has_value()) {
+            return std::nullopt;
         }
-        return std::nullopt;
+        return static_cast<std::int64_t>(best_bid_index_.value()) + min_price_;
     }
+
     std::optional<std::int64_t> best_ask() const {
-        for (std::size_t i = 0; i < ask_levels_.size(); i++){
-            if (!ask_levels_[i].empty()){
-                return static_cast<std::int64_t>(i) + min_price_;
-            }
+        if (!best_ask_index_.has_value()) {
+            return std::nullopt;
         }
-        return std::nullopt;
+        return static_cast<std::int64_t>(best_ask_index_.value()) + min_price_;
     }
-    
+
     std::vector<Trade> add_limit_order(Order order) {
         std::vector<Trade> trades;
 
         if (order.side == Side::Buy) {
             trades = match_buy(order);
             if (order.quantity > 0) {
-                auto index = price_to_index(order.price);
-                bid_levels_[index.value()].push_back(order);
+                auto index = price_to_index(order.price).value();
+                bid_levels_[index].push_back(order);
+
+                if (!best_bid_index_.has_value() || index > best_bid_index_.value()) {
+                    best_bid_index_ = index;
+                }
             }
         } else {
             trades = match_sell(order);
             if (order.quantity > 0) {
-                auto index = price_to_index(order.price);
-                ask_levels_[index.value()].push_back(order);
+                auto index = price_to_index(order.price).value();
+                ask_levels_[index].push_back(order);
+
+                if (!best_ask_index_.has_value() || index < best_ask_index_.value()) {
+                    best_ask_index_ = index;
+                }
             }
         }
 
         return trades;
     }
-        
+
     std::vector<Trade> match_buy(Order& incoming) {
         std::vector<Trade> trades;
 
@@ -77,7 +82,7 @@ public:
             if (!ask_price.has_value() || ask_price.value() > incoming.price) {
                 break;
             }
-            std::size_t index = price_to_index(ask_price.value()).value();
+            std::size_t index = best_ask_index_.value();
             auto& level_orders = ask_levels_[index];
             Order& resting = level_orders.front();
 
@@ -95,10 +100,23 @@ public:
 
             if (resting.quantity == 0) {
                 level_orders.pop_front();
+
+                if (level_orders.empty()) {
+                    // Ten poziom był granicą (best_ask_index_) i się opróżnił.
+                    // Znajdź następny zajęty poziom w górę.
+                    best_ask_index_ = std::nullopt;
+                    for (std::size_t i = index + 1; i < ask_levels_.size(); i++) {
+                        if (!ask_levels_[i].empty()) {
+                            best_ask_index_ = i;
+                            break;
+                        }
+                    }
+                }
             }
         }
         return trades;
     }
+
     std::vector<Trade> match_sell(Order& incoming) {
         std::vector<Trade> trades;
 
@@ -107,7 +125,7 @@ public:
             if (!bid_price.has_value() || bid_price.value() < incoming.price) {
                 break;
             }
-            std::size_t index = price_to_index(bid_price.value()).value();
+            std::size_t index = best_bid_index_.value();
             auto& level_orders = bid_levels_[index];
             Order& resting = level_orders.front();
 
@@ -125,17 +143,23 @@ public:
 
             if (resting.quantity == 0) {
                 level_orders.pop_front();
+
+                if (level_orders.empty()) {
+                    // Ten poziom był granicą (best_bid_index_) i się opróżnił.
+                    // Znajdź następny zajęty poziom w dół.
+                    best_bid_index_ = std::nullopt;
+                    for (std::size_t i = index; i-- > 0; ) {
+                        if (!bid_levels_[i].empty()) {
+                            best_bid_index_ = i;
+                            break;
+                        }
+                    }
+                }
             }
         }
         return trades;
     }
 
-    std::optional<std::size_t> price_to_index(std::int64_t price) const {
-        if (price < min_price_ || price > max_price_) {
-            return std::nullopt;
-        }
-        return static_cast<std::size_t>(price - min_price_);
-    }
 private:
     std::int64_t min_price_;
     std::int64_t max_price_;
@@ -146,6 +170,8 @@ private:
     std::vector<OrderQueue<PoolCapacity>> bid_levels_;
     std::vector<OrderQueue<PoolCapacity>> ask_levels_;
 
+    std::optional<std::size_t> best_bid_index_;
+    std::optional<std::size_t> best_ask_index_;
 };
 
-}
+} // namespace ome

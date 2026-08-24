@@ -9,15 +9,10 @@
 #include "ome/order.hpp"
 #include "ome/order_queue.hpp"
 #include "ome/memory_pool.hpp"
+#include "ome/trade.hpp"
 
 namespace ome {
 
-struct Trade {
-    std::uint64_t buy_order_id;
-    std::uint64_t sell_order_id;
-    std::int64_t price;
-    std::uint32_t quantity;
-};
 
 class OrderBook {
 public:
